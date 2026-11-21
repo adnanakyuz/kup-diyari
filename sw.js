@@ -1,4 +1,4 @@
-const C='kupdiyari-v5';
+const C='kupdiyari-v6';
 const DOSYA=['./','./index.html','./manifest.webmanifest','./icon-192.png','./icon-512.png'];
 // Kurulum: dosyaları tarayıcı önbelleğini atlayarak taze indir
 self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(DOSYA.map(u=>new Request(u,{cache:'reload'})))));self.skipWaiting();});

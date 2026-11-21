@@ -106,6 +106,11 @@ canvas{display:block;touch-action:none}
 #sMetin{margin:4px 0 0;font-size:17px;font-weight:600;line-height:1.3}
 @keyframes sAc{0%{transform:translate(-50%,-50%) scale(.2) rotate(-10deg)}70%{transform:translate(-50%,-50%) scale(1.1)}100%{transform:translate(-50%,-50%) scale(1)}}
 @keyframes sDon{50%{transform:rotate(-12deg) scale(1.12)}}
+.ayarlar{display:flex;justify-content:center;font-size:15px;color:var(--muted);margin:2px 0 0}
+.ayarlar input{accent-color:var(--accent);vertical-align:middle;width:150px}
+#yardim{font-size:13px;color:var(--muted);margin:8px 0 0;line-height:1.45}
+#dokun button.kos{font-size:26px}
+#dokun button.kos.acik{background:#ff9f1c}
 .k-baslik{font-size:15px;color:var(--muted);margin:2px 0 6px}
 #karakterler{display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-bottom:14px}
 .karakter{width:74px;padding:6px 4px;border-radius:14px;border:3px solid transparent;background:rgba(255,255,255,.1);color:#fff;font:600 15px var(--display);cursor:pointer}
@@ -160,7 +165,7 @@ body.dokunmatik #gorev.ders-var{bottom:calc(220px + env(safe-area-inset-bottom,0
   </div>
   <div class="grup eylem">
     <button data-tus="kir" class="kir">Kır</button><button data-tus="koy" class="koy">Koy</button>
-    <span></span><button data-tus="zipla">Zıpla</button>
+    <button data-tus="kos" class="kos" aria-label="Koş">🏃</button><button data-tus="zipla">Zıpla</button>
   </div>
 </div>
 
@@ -176,8 +181,10 @@ body.dokunmatik #gorev.ders-var{bottom:calc(220px + env(safe-area-inset-bottom,0
       <button class="mod minik" data-mod="minik"><div class="e">🐣</div><b>Minik</b><span>3–5 yaş · sesli anlatım</span></button>
       <button class="mod buyuk" data-mod="buyuk"><div class="e">🦊</div><b>Büyük</b><span>6–11 yaş · matematik, bilmece</span></button>
     </div>
+    <div class="ayarlar"><label><span id="fareYazi">🖱️ Fare hızı</span> <input type="range" id="fareHiz" min="0.4" max="2.2" step="0.1"></label></div>
     <label class="secenek"><input type="checkbox" id="dersSec"> <span id="dersYazi">Önce bilgisayar dersi (fare ve klavye)</span></label>
     <div class="alt"><button class="ikinci" id="yeni">🌍 Yeni dünya</button></div>
+    <p id="yardim"></p>
     <p id="kayit"></p>
   </div>
 </div>
@@ -374,10 +381,9 @@ vurgu.visible=false;sahne.add(vurgu);
 // ---------- Karakterler (Midyat oyunundaki gibi) ----------
 const KARAKTER=[
  {id:'ado',ad:'Ado',renk:'#e74c3c',gomlek:0xc0392b,pantolon:0x2c3e50,sac:0x2b1a0e},
- {id:'zeyno',ad:'Zeyno',renk:'#ff7aa8',gomlek:0xff6f9f,pantolon:0x5b3fa0,uzunSac:0x3a2212,toka:0xffd23f},
- {id:'cen',ad:'Cen',renk:'#1fc8c0',gomlek:0x1fc8c0,pantolon:0xf5efe6,sac:0x111111,gozluk:true},
+ {id:'cen',ad:'Cen',renk:'#1fc8c0',gomlek:0x1fc8c0,pantolon:0xf5efe6,uzunSac:0x1a1008,toka:0xff7aa8},
  {id:'baho',ad:'Baho',renk:'#f39c12',gomlek:0xd35400,pantolon:0x3b2a17,kep:0x2c3e50,yelek:0x6b4a2b},
- {id:'akli',ad:'Akli',renk:'#9b59b6',gomlek:0x8e44ad,pantolon:0x2c3e50,sapka:0xf5e6c8,makine:true}];
+ {id:'akli',ad:'Akli',renk:'#9b59b6',gomlek:0x8e44ad,pantolon:0x2c3e50,uzunSac:0x4a2c17,toka:0xffd23f,makine:true}];
 const avatar=new THREE.Group();avatar.visible=false;sahne.add(avatar);
 const elAlet=new THREE.Group();
 function karakterKur(id){
@@ -807,7 +813,15 @@ function rastgeleGorev(){
 function gorevAl(){
   if(!ilerleme.sandik&&!ilerleme.ozel.includes('sandik')&&(ilerleme.minik||0)+(ilerleme.buyuk||0)>=2){ilerleme.ozel.unshift('sandik');ilerlemeKaydet();}
   if(ilerleme.ozel.length){const k=ilerleme.ozel[0];if(OZEL[k])return Object.assign({ozel:k},OZEL[k]);ilerleme.ozel.shift();}
-  const liste=mod==='minik'?MINIK:BUYUK;const i=ilerleme[mod]||0;return i<liste.length?Object.assign({},liste[i]):rastgeleGorev();}
+  const liste=mod==='minik'?MINIK:BUYUK;const i=ilerleme[mod]||0;if(i<liste.length)return Object.assign({},liste[i]);
+  // bütün görevler bittiyse: aynı görevler + sahip olunan aletlerin görevleri karışık sırayla tekrar gelir (arada yeni sayılı görevler)
+  const kk='karisik_'+mod;if(!Array.isArray(ilerleme[kk])||!ilerleme[kk].length){
+    const t=liste.map((_,n)=>'g'+n).concat(ilerleme.aletler.filter(a=>a!=='el').map(a=>'a'+a),['r','r','r']);
+    for(let n=t.length-1;n>0;n--){const j=Math.random()*(n+1)|0;[t[n],t[j]]=[t[j],t[n]];}ilerleme[kk]=t;}
+  const k=ilerleme[kk].shift();ilerlemeKaydet();
+  if(k[0]==='g'&&liste[+k.slice(1)])return Object.assign({},liste[+k.slice(1)]);
+  if(k[0]==='a'&&OZEL[k.slice(1)])return Object.assign({},OZEL[k.slice(1)]);
+  return rastgeleGorev();}
 function gorevGoster(){
   if(dersAktif)return;
   gorev=gorevAl();gSayac=0;gorulenHayvan=new Set();gorevEl.hidden=false;
@@ -845,7 +859,7 @@ document.getElementById('tekrar').addEventListener('click',e=>{e.stopPropagation
 // ---------- Kontroller ----------
 let oynuyor=false,kilitli=false,suruk=null,basladi=false;
 const giris=document.getElementById('giris'),tuval=cizici.domElement;
-function hassas(){return mod==='minik'?.0019:.0025;}
+function hassas(){return (mod==='minik'?.0022:.0026)*(ilerleme.fareHiz||1);}
 function kilitIste(){if(dokunmatik)return;try{const p=tuval.requestPointerLock();if(p&&p.catch)p.catch(()=>{});}catch(e){}}
 function oyunaGir(){sesBaslat();giris.hidden=true;oynuyor=true;kilitIste();}
 function modSec(m){
@@ -869,18 +883,24 @@ const sesBtn=document.getElementById('sesBtn');
 function sesBtnCiz(){sesBtn.textContent=sesAcik?'🔊':'🔇';}
 sesBtn.addEventListener('click',()=>{sesAcik=!sesAcik;ilerleme.ses=sesAcik;ilerlemeKaydet();sesBtnCiz();if(!sesAcik)try{speechSynthesis.cancel();}catch(e){}});
 if(ilerleme.ses===false)sesAcik=false;sesBtnCiz();
-document.addEventListener('pointerlockchange',()=>{const simdi=document.pointerLockElement===tuval;if(kilitli&&!simdi&&oynuyor)durdur();kilitli=simdi;});
+// Midyat oyunundaki gibi: Esc fareyi serbest bırakır (oyun durmaz) → aletlere/bloklara tıklanabilir; ekrana tıklayınca geri döner. Serbestken Esc: durdur.
+let serbestZaman=0;
+document.addEventListener('pointerlockchange',()=>{const simdi=document.pointerLockElement===tuval;
+  if(kilitli&&!simdi&&oynuyor){serbestZaman=performance.now();balon('🖱️ Fare serbest','Alet ya da blok seç · Oyuna dönmek için ekrana tıkla · Esc: durdur');}
+  kilitli=simdi;});
 addEventListener('keydown',e=>{
   if(e.code==='Space'||e.code.startsWith('Arrow'))e.preventDefault();
-  tus[e.code]=true;
+  tus[e.code]=true;capsKos=!!(e.getModifierState&&e.getModifierState('CapsLock'));
   if(!oynuyor)return;
   if(e.code.startsWith('Digit')){const n=+e.code.slice(5);if(n>=1&&n<=9)sec(n,true);}
   if(e.code==='KeyV'||e.code==='F5'){e.preventDefault();gorusDegistir();}
   if(e.code==='KeyE'||e.code==='KeyQ')aletSonraki();
-  if(e.code==='Escape'&&!kilitli)durdur();
+  if(e.code==='Escape'&&!kilitli&&performance.now()-serbestZaman>400)durdur();
+  if(e.code==='AltLeft'||e.code==='AltRight'){e.preventDefault();if(kilitli){try{document.exitPointerLock();}catch(_){}}else kilitIste();}
 });
-addEventListener('keyup',e=>{tus[e.code]=false;});
-function bak(dx,dy,k){oy.yaw-=dx*k;oy.pitch=Math.max(-1.55,Math.min(1.55,oy.pitch-dy*k));dersOlay('bak',Math.abs(dx*k)+Math.abs(dy*k)*.5);}
+addEventListener('keyup',e=>{tus[e.code]=false;capsKos=!!(e.getModifierState&&e.getModifierState('CapsLock'));});
+let capsKos=false,dokunKos=false,kosuyor=false,ilkKosu=!ilerleme.kosuBildi;
+function bak(dx,dy,k){oy.yaw-=dx*k;oy.pitch=Math.max(-1.55,Math.min(1.55,oy.pitch-dy*k*.8));dersOlay('bak',Math.abs(dx*k)+Math.abs(dy*k)*.5);}
 addEventListener('mousemove',e=>{if(!oynuyor||dokunmatik)return;
   if(kilitli){bak(e.movementX,e.movementY,hassas());return;}
   if(suruk&&(e.buttons&1)){const dx=e.clientX-suruk.x,dy=e.clientY-suruk.y;suruk.x=e.clientX;suruk.y=e.clientY;suruk.yol+=Math.abs(dx)+Math.abs(dy);bak(dx,dy,hassas()*1.6);}});
@@ -890,13 +910,15 @@ tuval.addEventListener('mousedown',e=>{if(!oynuyor||dokunmatik)return;
   suruk={x:e.clientX,y:e.clientY,yol:0};});
 addEventListener('mouseup',e=>{if(!oynuyor||dokunmatik||kilitli)return;if(e.button===0&&suruk&&suruk.yol<6){kir();kilitIste();}suruk=null;});
 tuval.addEventListener('contextmenu',e=>e.preventDefault());
-addEventListener('wheel',e=>{if(!oynuyor)return;let n=secili+(e.deltaY>0?1:-1);if(n<1)n=9;if(n>9)n=1;sec(n,true);},{passive:true});
+let kamUzak=ilerleme.kamUzak||4.2,kamM=4.2;
+addEventListener('wheel',e=>{if(!oynuyor)return;if(gorus!==0){kamUzak=Math.max(2.5,Math.min(9,kamUzak+e.deltaY*.004));ilerleme.kamUzak=kamUzak;return;}let n=secili+(e.deltaY>0?1:-1);if(n<1)n=9;if(n>9)n=1;sec(n,true);},{passive:true});
 let son=null;
 tuval.addEventListener('touchstart',e=>{const t=e.changedTouches[0];son={x:t.clientX,y:t.clientY,id:t.identifier};},{passive:true});
-tuval.addEventListener('touchmove',e=>{if(!oynuyor)return;for(const t of e.changedTouches){if(son&&t.identifier===son.id){bak(t.clientX-son.x,t.clientY-son.y,.006);son.x=t.clientX;son.y=t.clientY;}}},{passive:true});
+tuval.addEventListener('touchmove',e=>{if(!oynuyor)return;for(const t of e.changedTouches){if(son&&t.identifier===son.id){bak(t.clientX-son.x,t.clientY-son.y,.006*(ilerleme.fareHiz||1));son.x=t.clientX;son.y=t.clientY;}}},{passive:true});
 const dokunEsle={ileri:'KeyW',geri:'KeyS',sol:'KeyA',sag:'KeyD',zipla:'Space'};
+const kosBtn=document.querySelector('#dokun [data-tus=kos]');
 document.querySelectorAll('#dokun button').forEach(b=>{const k=b.dataset.tus;
-  b.addEventListener('pointerdown',e=>{e.preventDefault();sesBaslat();if(!oynuyor)return;if(k==='kir')kir();else if(k==='koy')koy();else tus[dokunEsle[k]]=true;});
+  b.addEventListener('pointerdown',e=>{e.preventDefault();sesBaslat();if(!oynuyor)return;if(k==='kir')kir();else if(k==='koy')koy();else if(k==='kos'){dokunKos=!dokunKos;b.classList.toggle('acik',dokunKos);efekt.koy();}else tus[dokunEsle[k]]=true;});
   ['pointerup','pointerleave','pointercancel'].forEach(ev=>b.addEventListener(ev,()=>{if(dokunEsle[k])tus[dokunEsle[k]]=false;}));});
 
 // ---------- Döngü ----------
@@ -908,9 +930,13 @@ const nisanEl=document.getElementById('nisan');
 const GORUS_AD=['👀 Gözünden','🎥 Arkadan','😀 Önden'];
 function gorusDegistir(){sesBaslat();gorus=(gorus+1)%3;ilerleme.gorus=gorus;ilerlemeKaydet();balon(GORUS_AD[gorus],dokunmatik?'Kamera değişti':'Kamera değişti · V tuşu');efekt.koy();}
 document.getElementById('gorusBtn').addEventListener('click',e=>{e.stopPropagation();gorusDegistir();});
-function kameraAyarla(){
-  const goz=gozNokta(),u=avatar.userData;
-  avatar.position.set(oy.x,oy.y,oy.z);avatar.rotation.y=oy.yaw+Math.PI;
+let govde=0;
+function kameraAyarla(dt){
+  const goz=gozNokta(),u=avatar.userData;dt=dt||0;
+  let hedef=govde;
+  if(gorus===0||sallama>0)hedef=oy.yaw+Math.PI;else if(hareketli&&Math.hypot(oy.vx,oy.vz)>.1)hedef=Math.atan2(oy.vx,oy.vz);
+  let fark=((hedef-govde)%(2*Math.PI)+3*Math.PI)%(2*Math.PI)-Math.PI;govde+=fark*Math.min(1,dt*(sallama>0?20:11));
+  avatar.position.set(oy.x,oy.y,oy.z);avatar.rotation.y=govde;
   const s=hareketli?Math.sin(adimFaz)*.7:0;
   u.bacak[0].rotation.x+=(s-u.bacak[0].rotation.x)*.3;u.bacak[1].rotation.x=-u.bacak[0].rotation.x;
   u.kol[0].rotation.x=-u.bacak[0].rotation.x;u.kol[1].rotation.x=u.bacak[0].rotation.x;
@@ -921,8 +947,10 @@ function kameraAyarla(){
   avatar.visible=true;nisanEl.hidden=gorus===2;
   const dir=bakisYonu();const geri=gorus===1?dir.clone().negate():dir.clone();
   geri.y+=gorus===1?.35:.15;geri.normalize();
-  let m=4.2;for(let t=.4;t<=4.2;t+=.1){const p=goz.clone().addScaledVector(geri,t);if(kati(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z))){m=Math.max(.6,t-.35);break;}}
-  kamera.position.copy(goz).addScaledVector(geri,m);
+  let m=kamUzak;for(let t=.4;t<=kamUzak;t+=.1){const p=goz.clone().addScaledVector(geri,t);if(kati(Math.floor(p.x),Math.floor(p.y),Math.floor(p.z))){m=Math.max(.6,t-.35);break;}}
+  kamM=m<kamM?m:kamM+(m-kamM)*Math.min(1,dt*6); // duvara yaklaşınca hemen, açılınca yumuşak
+  kamera.position.copy(goz).addScaledVector(geri,kamM);
+  avatar.visible=kamM>1.25; // kamera çok yaklaşırsa karakter görüşü kapatmasın
   kamera.lookAt(gorus===1?goz.clone().addScaledVector(dir,4):goz);
 }
 const suAltiEl=document.getElementById('suAlti');
@@ -935,8 +963,11 @@ function dongu(simdi){
     if(suda&&!oncedenSuda){efekt.su();kirinti(fx,Math.floor(oy.y+.5),fz,SU);
       if(!suIpucu){suIpucu=true;balon('🌊 Yüzüyorsun!','Kıyıya doğru yürü, kendiliğinden çıkarsın'+(mod==='buyuk'&&!dokunmatik?' · Shift: dal':''));konus('Yüzüyorsun! Kıyıya doğru yürü, kendiliğinden çıkarsın.');}}
     oncedenSuda=suda;
-    const hiz=(mod==='minik'?3.6:4.4)*(suda?.8:1);let ix=0,iz=0;
+    let ix=0,iz=0;
     if(tus.KeyW||tus.ArrowUp)iz-=1;if(tus.KeyS||tus.ArrowDown)iz+=1;if(tus.KeyA||tus.ArrowLeft)ix-=1;if(tus.KeyD||tus.ArrowRight)ix+=1;
+    kosuyor=!suda&&(ix||iz)&&(tus.ShiftLeft||tus.ShiftRight||capsKos||dokunKos);
+    if(kosuyor&&ilkKosu){ilkKosu=false;ilerleme.kosuBildi=true;ilerlemeKaydet();balon('🏃 Koşuyorsun!',dokunmatik?'🏃 düğmesine tekrar basınca yürürsün':'Shift basılı: koş · Caps Lock: hep koş');}
+    const hiz=(mod==='minik'?3.6:4.4)*(suda?.8:1)*(kosuyor?1.75:1);
     const l=Math.hypot(ix,iz)||1;ix/=l;iz/=l;
     const s=Math.sin(oy.yaw),c=Math.cos(oy.yaw);
     oy.vx=(ix*c+iz*s)*hiz;oy.vz=(-ix*s+iz*c)*hiz;
@@ -961,7 +992,8 @@ function dongu(simdi){
   const zp=Math.sin(simdi/300)*.15;parcaMap.forEach(p=>{if(p.isaret)p.isaret.forEach(s=>s.position.y=s.userData.y+zp);});
   hayvanGuncelle(dt);kirintiGuncelle(dt);
   bulutlar.children.forEach(b=>{b.position.x+=dt*.8;if(b.position.x>oy.x+90)b.position.x-=180;if(b.position.x<oy.x-90)b.position.x+=180;if(b.position.z>oy.z+90)b.position.z-=180;if(b.position.z<oy.z-90)b.position.z+=180;});
-  kameraAyarla();
+  {const f=kosuyor?80:72;if(Math.abs(kamera.fov-f)>.1){kamera.fov+=(f-kamera.fov)*Math.min(1,dt*8);kamera.updateProjectionMatrix();}}
+  kameraAyarla(dt);
   gozSuda=al(Math.floor(oy.x),Math.floor(oy.y+1.6),Math.floor(oy.z))===SU;
   suAltiEl.hidden=!gozSuda;
   if(gozSuda){sahne.fog.color.setHex(0x2a6fb5);sahne.fog.near=1;sahne.fog.far=16;}else{sahne.fog.color.setHex(0x8fd0f2);sahne.fog.near=SIS_YAKIN;sahne.fog.far=SIS_UZAK;}
@@ -978,7 +1010,11 @@ document.getElementById('dersSec').checked=!ilerleme.ders;
 if(dokunmatik)document.getElementById('dersYazi').textContent='Önce nasıl oynanır göster';
 document.getElementById('kayit').textContent=(kayitli?'Kayıtlı dünyan yüklendi. ':'')+'Yaptıkların ve yıldızların bu bilgisayarda saklanır.';
 sahne.add(kamera);kamera.add(fpAlet);
-karakterKur(ilerleme.karakter||'ado');aletCubugu();aletGoster();karakterSecimi();
+if(!KARAKTER.some(k=>k.id===ilerleme.karakter))ilerleme.karakter='ado';
+karakterKur(ilerleme.karakter);
+{const r=document.getElementById('fareHiz');r.value=ilerleme.fareHiz||1;r.addEventListener('input',()=>{ilerleme.fareHiz=+r.value;ilerlemeKaydet();});
+ if(dokunmatik)document.getElementById('fareYazi').textContent='👆 Kaydırma hızı';
+ document.getElementById('yardim').textContent=dokunmatik?'◀ ▲ ▶ yürü · 🏃 koş · Ekranı kaydır: bak · Kır / Koy · Alttaki kutular: blok ve alet · 🎥 kamera':'W A S D: yürü · Shift: KOŞ (Caps Lock: hep koş) · Fare: bak · Sol tık: kır · Sağ tık: koy · Esc ya da Alt: fareyi serbest bırak (alet/blok seçmek için), ekrana tıkla: geri dön · E: sıradaki alet · V: kamera · Tekerlek: blok seç (dışarıdan kamerada yakınlaş)';}aletCubugu();aletGoster();karakterSecimi();
 yildizGoster();sec(1);dogur();cevreyiKur(true);hayvanlariKur();
 oy.yaw=0.6;
 requestAnimationFrame(dongu);
